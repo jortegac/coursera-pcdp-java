@@ -1,4 +1,4 @@
 # Coursera: Parallel, Concurrent, and Distributed Programming in Java Specialization
 
-Repository for my assignment for the Coursera specialization
+Repository for my miniprojects for the Coursera specialization found here:
 https://www.coursera.org/specializations/pcdp
