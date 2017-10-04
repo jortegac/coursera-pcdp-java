@@ -8,6 +8,7 @@ import edu.coursera.concurrent.boruvka.Component;
 import java.util.Queue;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * A parallel implementation of Boruvka's algorithm to compute a Minimum
@@ -28,7 +29,52 @@ public final class ParBoruvka extends AbstractBoruvka<ParBoruvka.ParComponent> {
     @Override
     public void computeBoruvka(final Queue<ParComponent> nodesLoaded,
             final SolutionToBoruvka<ParComponent> solution) {
-        throw new UnsupportedOperationException();
+
+        ParComponent node = null;
+
+        Queue<ParComponent> workingSet = nodesLoaded;
+
+        while ((node = nodesLoaded.poll()) != null) {
+            if (!node.lock.tryLock()) {
+                continue;
+            }
+
+            if (node.isDead) {
+                node.lock.unlock();
+                continue;
+            }
+
+            final Edge<ParComponent> edge = node.getMinEdge();
+            if (edge == null) {
+                solution.setSolution(node);
+                break;
+            }
+
+            final ParComponent other = edge.getOther(node);
+
+            if (!other.lock.tryLock()){
+                node.lock.unlock();
+                nodesLoaded.add(node);
+                continue;
+            }
+
+            if (other.isDead){
+                other.lock.unlock();
+                node.lock.unlock();
+                nodesLoaded.add(node);
+                continue;
+            }
+
+            other.isDead = true;
+
+            node.merge(other, edge.weight());
+
+            node.lock.unlock();
+            other.lock.unlock();
+
+            nodesLoaded.add(node);
+
+        }
     }
 
     /**
@@ -37,6 +83,9 @@ public final class ParBoruvka extends AbstractBoruvka<ParBoruvka.ParComponent> {
      * result of collapsing edges to form a component from multiple nodes.
      */
     public static final class ParComponent extends Component<ParComponent> {
+
+        ReentrantLock lock = new ReentrantLock();
+
         /**
          *  A unique identifier for this component in the graph that contains
          *  it.
